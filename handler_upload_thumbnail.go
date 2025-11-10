@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"mime"
@@ -81,16 +79,13 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	}
 
 	fileExtension := getMediaTypeExt(mediaType);
-	randId := make([]byte, 32)
-	_, err = rand.Read(randId);
+	fileName, err := generateFileName(fileExtension);
 
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "failed to create id", err)
 		return
 	}
 
-	rawUrl := base64.RawURLEncoding.EncodeToString(randId);
-	fileName := fmt.Sprintf("%v.%v", rawUrl, fileExtension);
 	fullFilePath := filepath.Join(cfg.assetsRoot, fileName);
 
 	assetFile, err := os.Create(fullFilePath);

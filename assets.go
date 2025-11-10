@@ -1,6 +1,9 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
+	"fmt"
 	"os"
 	"strings"
 )
@@ -19,3 +22,29 @@ func getMediaTypeExt(mediaType string) string {
 	}
 	return "." + parts[1]
 }
+
+func generateRandomId() (string, error) {
+	randId := make([]byte, 32)
+	_, err := rand.Read(randId);
+
+	if err != nil {
+		return "", nil;
+	}
+
+	id := base64.RawURLEncoding.EncodeToString(randId);
+
+	return id, nil;
+}
+
+func generateFileName(fileExtension string) (string, error) {
+	id, err := generateRandomId();
+
+	if err != nil {
+		return "", err;
+	}
+
+	fileName := fmt.Sprintf("%v%v", id, fileExtension);
+
+	return fileName, nil;
+}
+
