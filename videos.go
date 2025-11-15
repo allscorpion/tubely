@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"math"
 	"os/exec"
+	"path"
 )
 
 type videoStream struct {
@@ -72,4 +73,20 @@ func getVideoAssetPrefix(filePath string) (string, error) {
 	default:
 		return "other", nil;
 	}
+}
+
+func processVideoForFastStart(filePath string) (string, error) {
+	dir := path.Dir(filePath)
+    base := path.Base(filePath)
+    outputPath := path.Join(dir, base[:len(base)-len(path.Ext(base))]+".processing.mp4");
+
+	cmd := exec.Command("ffmpeg", "-i", filePath, "-c", "copy", "-movflags", "faststart", "-f", "mp4", outputPath);
+
+	err := cmd.Run();
+
+	if err != nil {
+		return "", err;
+	}
+
+	return outputPath, nil;
 }

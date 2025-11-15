@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
 	"github.com/google/uuid"
@@ -99,28 +100,44 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	outputPath, err := processVideoForFastStart(tempFile.Name());
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "failed to optimize video", err)
+		return
+	}
+
+	processedFile, err := os.Open(outputPath);
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "failed to open optimize video", err)
+		return
+	}
+
+	defer os.Remove(outputPath);
+	defer processedFile.Close();
+
 	fileExtension := getMediaTypeExt(mediaType);
 	fileName, err := generateFileName(fileExtension);
-	fullFileName := path.Join(videoAssetPrefix, fileName);
+	key := path.Join(videoAssetPrefix, fileName);
 
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "failed to generate file name", err)
 		return
 	}
 
-	_, err = cfg.s3Client.PutObject(r.Context(),  &s3.PutObjectInput{
-		Bucket: &cfg.s3Bucket,
-		Key: &fullFileName,
-		Body: tempFile,
-		ContentType: &mediaType,
-	});
-
+	_, err = cfg.s3Client.PutObject(r.Context(), &s3.PutObjectInput{
+		Bucket:      aws.String(cfg.s3Bucket),
+		Key:         aws.String(key),
+		Body:        processedFile,
+		ContentType: aws.String(mediaType),
+	})
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "failed to create file", err)
+		respondWithError(w, http.StatusInternalServerError, "Error uploading file to S3", err)
 		return
 	}
 
-	videoUrl := fmt.Sprintf("https://%v.s3.%v.amazonaws.com/%v", cfg.s3Bucket, cfg.s3Region, fullFileName);
+	videoUrl := fmt.Sprintf("%v/%v", cfg.s3CfDistribution, key);
 
 	video.VideoURL = &videoUrl;
 
@@ -133,3 +150,4 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 
 	respondWithJSON(w, http.StatusOK, video)
 }
+
